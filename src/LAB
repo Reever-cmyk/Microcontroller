@@ -1,0 +1,97 @@
+//----------------------Include------------------
+#include <Arduino.h>
+#include <heltec.h>
+#include <WiFi.h>
+#include "oled/OLEDDisplayUi.h"
+#include "images.h"
+#include "WiFiCred.h"
+#include "NetScan.h"
+#include "pthread.h"
+//----------------------Define------------------
+#define BAND 868E6
+#define DEMO_DURATION 1000
+
+//----------------------Variables------------------
+
+
+//----------------------Methods------------------
+GetData()
+{
+    for (int j = 0; j < n - 1; j++)
+    {
+        display->drawString(x, y + (j + 1) * 9, (String)(j + 1));
+        display->drawString(x + 6, y + (j + 1) * 9, ":");
+        display->drawString(x + 12, y + (j + 1) * 9, (String)(WiFi.SSID(j)));
+        display->drawString(x + 90, y + (j + 1) * 9, " (");
+        display->drawString(x + 98, y + (j + 1) * 9, (String)(WiFi.RSSI(j)));
+        display->drawString(x + 114, y + (j + 1) * 9, ")");
+    }
+
+    String ip = WiFi.localIP().toString();
+    String mac = WiFi.macAddress();
+    long rssi = WiFi.RSSI();
+    return ip,mac,rssi;
+}
+
+void wifi_connect()
+{
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(ssid, pass);
+    while (WiFi.status() != WL_CONNECTED)
+    {
+        delay(500);
+    }
+}
+
+void draw_wifi(OLEDDisplay *display, OLEDDisplayUiState *state, int16_t x, int16_t y)
+{
+    display->drawString(x, y, "IP Addresse:");
+    display->drawString(x, y + 10, ip);
+    display->drawString(x, y + 20, "MAC Addresse:");
+    display->drawString(x, y + 30, String(mac));
+    display->drawString(x, y + 40, "RSSI:");
+    display->drawString(x + 50, y + 40, String(rssi));
+}
+
+void draw_logo(OLEDDisplay *display, OLEDDisplayUiState *state, int16_t x, int16_t y)
+{
+    display->drawXbm(x, y + 5, HelTec_LOGO_width, HelTec_LOGO_height, HelTec_LOGO_bits);
+}
+
+static FrameCallback frames[] = {print_wifi, net_scan, drawFrame3};
+static int frameCount = 3;
+
+void uiSetup()
+{
+
+    ui.setTargetFPS(30);
+    ui.setActiveSymbol(activeSymbol);
+    ui.setInactiveSymbol(inactiveSymbol);
+    ui.setIndicatorPosition(BOTTOM);
+    ui.setIndicatorDirection(LEFT_RIGHT);
+    ui.setFrameAnimation(SLIDE_LEFT);
+    ui.setFrames(frames, frameCount);
+    ui.init();
+    Heltec.display->flipScreenVertically();
+}
+
+void setup(void)
+{
+    Heltec.begin(true /*DisplayEnable Enable*/, false /*LoRa Enable*/, true /*Serial Enable*/, false /*LoRa use PABOOST*/, BAND /*LoRa RF working band*/);
+    uiSetup();
+    WiFi.disconnect();
+    delay(100);
+    wifi_connect();
+}
+
+void loop(void)
+{
+    int remainingTimeBudget = ui.update();
+
+    String SSID[5] = WiFi.SSID();
+    long RSI[5] = WiFi.RSSI();
+    if (remainingTimeBudget > 0)
+    {
+        delay(remainingTimeBudget);
+    }
+}
